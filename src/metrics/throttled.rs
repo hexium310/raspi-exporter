@@ -1,4 +1,4 @@
-use std::ffi::OsStr;
+use std::{ffi::OsStr, ops::Deref};
 
 use prometheus_client::{
     encoding::EncodeLabelSet,
@@ -6,12 +6,11 @@ use prometheus_client::{
     registry::Registry,
 };
 
-use crate::{command::{Executor, Parser}, metrics::Collector};
+use crate::{command::{CommandExecutor, Executor, Parser}, metrics::Collector};
 
 #[derive(Clone, Debug)]
-pub struct Throttled<S, I, P> {
-    command: S,
-    args: I,
+pub struct Throttled<E, P> {
+    executor: E,
     parser: P,
 }
 
@@ -32,28 +31,38 @@ pub struct ThrottledLabels {
     bit: u8
 }
 
+pub struct ThrottledExecutor<S, I> (CommandExecutor<S, I>);
+
 pub struct ThrottledParser;
 
-impl<S, I, P> Throttled<S, I, P> {
-    pub fn new(command: S, args: I, parser: P) -> Self {
+impl<E, P> Throttled<E, P> {
+    pub fn new(executor: E, parser: P) -> Self {
         Self {
-            command,
-            args,
+            executor,
             parser,
         }
     }
 }
 
-impl<S, I, P> Executor<S, I> for Throttled<S, I, P>
-where 
-    S: AsRef<OsStr> + Send,
-    I: IntoIterator<Item = S> + Send,
-{}
+impl<S, I> ThrottledExecutor<S, I> {
+    pub fn new(command: S, args: I) -> Self {
+        Self (CommandExecutor::new(command, args))
+    }
+}
 
-impl<S, I, P> Collector for Throttled<S, I, P>
+impl<S, I> Deref for ThrottledExecutor<S, I> {
+    type Target = CommandExecutor<S, I>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<S, I, E, P> Collector for Throttled<E, P>
 where 
     S: AsRef<OsStr> + Clone + Copy + Send + Sync,
     I: IntoIterator<Item = S> + Clone + Copy + Send + Sync,
+    E: Deref<Target = CommandExecutor<S, I>> + Send + Sync,
     P: Parser<Item = ThrottledState> + Send + Sync,
 {
     async fn collect(&self, registry: &mut Registry) -> anyhow::Result<()> {
@@ -64,7 +73,7 @@ where
             family.clone(),
         );
 
-        let output = self.execute(self.command, self.args).await?;
+        let output = self.executor.execute().await?;
         let state = self.parser.parse(&output)?;
 
         family.get_or_create(&ThrottledLabels { bit: 0 }).set(state.undervoltage_detected.into());
