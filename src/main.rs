@@ -1,19 +1,24 @@
-use crate::{
+use std::sync::{Arc, Mutex};
+
+use prometheus_client::registry::Registry;
+
+use raspi_exporter::{
     metrics::{
-        throttled::{Throttled, ThrottledExecutor, ThrottledParser},
+        throttled::{Throttled, ThrottledRegisterer, ThrottledExecutor, ThrottledParser},
         MetricsHandler,
     },
     server::Server,
 };
 
-mod command;
-mod metrics;
-mod server;
-
 #[tokio::main]
 async fn main() {
-    let throttled = Throttled::new(ThrottledExecutor::new("vcgencmd", ["get_throttled"]), ThrottledParser);
-    let metrics_handler = MetricsHandler::new(throttled);
+    let registry = Arc::new(Mutex::new(Registry::default()));
+    let throttled = Throttled::new(
+        ThrottledExecutor::new("vcgencmd", ["get_throttled"]),
+        ThrottledParser,
+        ThrottledRegisterer { registry: registry.clone() }
+    );
+    let metrics_handler = MetricsHandler::new(throttled, registry.clone());
 
     let server = Server::new(8021, metrics_handler);
     server.start().await.unwrap();

@@ -7,9 +7,17 @@ pub struct CommandExecutor<S, I> {
     args: I,
 }
 
-pub trait Executor<S, I> {
+pub trait Executor {
     fn execute(&self) -> impl Future<Output = anyhow::Result<String>> + Send;
 }
+
+pub trait Parser {
+    type Item;
+
+    fn parse(&self, input: &str) -> anyhow::Result<Self::Item>;
+}
+
+pub trait State {}
 
 impl<S, I> CommandExecutor<S, I> {
     pub fn new(command: S, args: I) -> Self {
@@ -20,8 +28,8 @@ impl<S, I> CommandExecutor<S, I> {
     }
 }
 
-impl<S, I> Executor<S, I> for CommandExecutor<S, I>
-where 
+impl<S, I> Executor for CommandExecutor<S, I>
+where
     S: AsRef<OsStr> + Clone + Copy + Send + Sync,
     I: IntoIterator<Item = S> + Clone + Copy + Send + Sync,
 {
@@ -34,10 +42,4 @@ where
         let result = String::from_utf8(output.stdout)?;
         Ok(result)
     }
-}
-
-pub trait Parser {
-    type Item;
-
-    fn parse(&self, input: &str) -> anyhow::Result<Self::Item>;
 }

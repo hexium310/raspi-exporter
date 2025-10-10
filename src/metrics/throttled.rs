@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, ops::Deref};
+use std::sync::{Arc, Mutex};
 
 use prometheus_client::{
     encoding::EncodeLabelSet,
@@ -6,12 +6,15 @@ use prometheus_client::{
     registry::Registry,
 };
 
-use crate::{command::{CommandExecutor, Executor, Parser}, metrics::Collector};
+use crate::{command::{CommandExecutor, Executor, Parser, State}, metrics::{Collector, Registerer}};
+
+pub type ThrottledExecutor<S, I> = CommandExecutor<S, I>;
 
 #[derive(Clone, Debug)]
-pub struct Throttled<E, P> {
+pub struct Throttled<E, P, R> {
     executor: E,
     parser: P,
+    registerer: R,
 }
 
 // https://www.raspberrypi.com/documentation/computers/os.html#get_throttled
@@ -31,50 +34,54 @@ pub struct ThrottledLabels {
     bit: u8
 }
 
-pub struct ThrottledExecutor<S, I> (CommandExecutor<S, I>);
-
 pub struct ThrottledParser;
 
-impl<E, P> Throttled<E, P> {
-    pub fn new(executor: E, parser: P) -> Self {
+pub struct ThrottledRegisterer {
+    pub registry: Arc<Mutex<Registry>>,
+}
+
+impl<E, P, R> Throttled<E, P, R> {
+    pub fn new(executor: E, parser: P, registerer: R) -> Self {
         Self {
             executor,
             parser,
+            registerer,
         }
     }
 }
 
-impl<S, I> ThrottledExecutor<S, I> {
-    pub fn new(command: S, args: I) -> Self {
-        Self (CommandExecutor::new(command, args))
-    }
-}
-
-impl<S, I> Deref for ThrottledExecutor<S, I> {
-    type Target = CommandExecutor<S, I>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<S, I, E, P> Collector for Throttled<E, P>
-where 
-    S: AsRef<OsStr> + Clone + Copy + Send + Sync,
-    I: IntoIterator<Item = S> + Clone + Copy + Send + Sync,
-    E: Deref<Target = CommandExecutor<S, I>> + Send + Sync,
+impl<E, P, R> Collector for Throttled<E, P, R>
+where
+    E: Executor + Send + Sync,
     P: Parser<Item = ThrottledState> + Send + Sync,
+    R: Registerer<Item = ThrottledState> + Send + Sync,
 {
-    async fn collect(&self, registry: &mut Registry) -> anyhow::Result<()> {
-        let family = Family::<ThrottledLabels, Gauge>::default();
-        registry.register(
-            "raspi_throttled",
-            "Throttled state",
-            family.clone(),
-        );
-
+    async fn collect(&self) -> anyhow::Result<()> {
         let output = self.executor.execute().await?;
         let state = self.parser.parse(&output)?;
+
+        self.registerer.register(state).await?;
+
+        Ok(())
+    }
+}
+
+impl Registerer for ThrottledRegisterer {
+    type Item = ThrottledState;
+
+    async fn register(&self, state: Self::Item) -> anyhow::Result<()> {
+        let family = Family::<ThrottledLabels, Gauge>::default();
+        {
+            self
+                .registry
+                .lock()
+                .expect("failed to lock registry mutex")
+                .register(
+                    "raspi_throttled",
+                    "Throttled state",
+                    family.clone(),
+                );
+        }
 
         family.get_or_create(&ThrottledLabels { bit: 0 }).set(state.undervoltage_detected.into());
         family.get_or_create(&ThrottledLabels { bit: 1 }).set(state.arm_frequency_capped.into());
@@ -113,3 +120,5 @@ impl Parser for ThrottledParser {
         Ok(state)
     }
 }
+
+impl State for ThrottledState {}

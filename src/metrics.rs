@@ -1,39 +1,48 @@
+use std::sync::{Arc, Mutex};
+
 use prometheus_client::{encoding::text, registry::Registry};
 
 pub mod throttled;
 
 pub struct MetricsHandler<Throttled> {
     throttled: Throttled,
+    registry: Arc<Mutex<Registry>>,
+}
+
+pub trait Registerer {
+    type Item;
+
+    fn register(&self, state: Self::Item) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 pub trait Collector {
-    fn collect(&self, registry: &mut Registry) -> impl Future<Output = anyhow::Result<()>> + Send;
+    fn collect(&self) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 pub trait Handler {
     fn handle(&self) -> impl Future<Output = anyhow::Result<String>> + Send;
 }
 
-impl<Throttled> MetricsHandler<Throttled>
-where
-    Throttled: Collector,
-{
-    pub fn new(throttled_collector: Throttled) -> Self {
-        Self { throttled: throttled_collector }
+impl<Throttled> MetricsHandler<Throttled> {
+    pub fn new(throttled: Throttled, registry: Arc<Mutex<Registry>>) -> Self {
+        Self {
+            throttled,
+            registry,
+        }
     }
 }
 
 impl<Throttled> Handler for MetricsHandler<Throttled>
-where 
+where
     Throttled: Collector + Send + Sync + 'static,
 {
     async fn handle(&self) -> anyhow::Result<String> {
-        let mut registry = Registry::default();
-
-        self.throttled.collect(&mut registry).await?;
+        self.throttled.collect().await?;
 
         let mut buffer = String::new();
-        text::encode(&mut buffer, &registry).unwrap();
+        {
+            text::encode(&mut buffer, &self.registry.lock().expect("failed to lock registry mutex"))?;
+        }
 
         Ok(buffer)
     }
