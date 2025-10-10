@@ -18,6 +18,7 @@ pub struct Throttled<E, P, R> {
 }
 
 // https://www.raspberrypi.com/documentation/computers/os.html#get_throttled
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct ThrottledState {
     pub undervoltage_detected: bool,
     pub arm_frequency_capped: bool,
@@ -122,3 +123,96 @@ impl Parser for ThrottledParser {
 }
 
 impl State for ThrottledState {}
+
+#[cfg(test)]
+mod tests {
+    use futures::future::ok;
+
+    use crate::{command::{MockExecutor, Parser}, metrics::{throttled::{Throttled, ThrottledParser, ThrottledState}, Collector, Registerer}};
+
+    mockall::mock! {
+        Registerer {}
+
+        impl Registerer for Registerer {
+            type Item = ThrottledState;
+
+            fn register(&self, state: <Self as Registerer>::Item) -> impl Future<Output = anyhow::Result<()>> + Send;
+        }
+    }
+
+    mockall::mock! {
+        Parser {}
+
+        impl Parser for Parser {
+            type Item = ThrottledState;
+
+            fn parse(&self, input: &str) -> anyhow::Result<<Self as Parser>::Item>;
+        }
+    }
+
+    #[test]
+    fn parse() {
+        let throttled_parser = ThrottledParser;
+        let result = throttled_parser.parse("throttled=0xd0005").unwrap();
+
+        assert_eq!(
+            result,
+            ThrottledState {
+                undervoltage_detected: true,
+                arm_frequency_capped: false,
+                currently_throttled: true,
+                soft_temperature_limit_active: false,
+                undervoltage_has_occured: true,
+                arm_frequency_capping_has_occured: false,
+                throttling_has_occured: true,
+                soft_temperature_limit_has_occured: true,
+            }
+        )
+    }
+
+    #[tokio::test]
+    async fn collect() {
+        let mut mock_executor = MockExecutor::new();
+        mock_executor
+            .expect_execute()
+            .times(1)
+            .returning(|| Box::pin(ok("throttled=0xd0005".to_string())));
+
+        let mut mock_parser = MockParser::new();
+        mock_parser
+            .expect_parse()
+            .times(1)
+            .withf(|x| x == "throttled=0xd0005")
+            .returning(|_| Ok(ThrottledState {
+                undervoltage_detected: true,
+                arm_frequency_capped: false,
+                currently_throttled: true,
+                soft_temperature_limit_active: false,
+                undervoltage_has_occured: true,
+                arm_frequency_capping_has_occured: false,
+                throttling_has_occured: true,
+                soft_temperature_limit_has_occured: true,
+            }));
+
+        let mut mock_registerer = MockRegisterer::new();
+        mock_registerer
+            .expect_register()
+            .times(1)
+            .withf(|x| *x == ThrottledState {
+                undervoltage_detected: true,
+                arm_frequency_capped: false,
+                currently_throttled: true,
+                soft_temperature_limit_active: false,
+                undervoltage_has_occured: true,
+                arm_frequency_capping_has_occured: false,
+                throttling_has_occured: true,
+                soft_temperature_limit_has_occured: true,
+            })
+            .returning(|_| Box::pin(ok(())));
+
+        let throttled = Throttled::new(mock_executor, mock_parser, mock_registerer);
+        let result = throttled.collect().await;
+
+        assert!(result.is_ok())
+    }
+}

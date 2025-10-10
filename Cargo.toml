@@ -3,8 +3,8 @@ name = "raspi-exporter"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-anyhow = "1.0.100"
+[dependencies.anyhow]
+version = "1.0.100"
 
 [dependencies.axum]
 version = "0.8.6"
@@ -17,3 +17,9 @@ version = "0.24.0"
 [dependencies.tokio]
 version = "1.47.1"
 features = ["macros", "net", "process", "rt-multi-thread", "signal"]
+
+[dev-dependencies]
+futures = { version = "0.3.31", default-features = false, features = ["std"] }
+
+[dev-dependencies.mockall]
+version = "0.13.1"
