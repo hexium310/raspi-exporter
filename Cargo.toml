@@ -18,8 +18,10 @@ version = "0.24.0"
 version = "1.47.1"
 features = ["macros", "net", "process", "rt-multi-thread", "signal"]
 
-[dev-dependencies]
-futures = { version = "0.3.31", default-features = false, features = ["std"] }
+[dev-dependencies.futures]
+version = "0.3.31"
+default-features = false
+features = ["std"]
 
 [dev-dependencies.mockall]
 version = "0.13.1"
