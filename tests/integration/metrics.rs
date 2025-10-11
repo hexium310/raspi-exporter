@@ -42,3 +42,17 @@ async fn metrics() {
     );
     assert_eq!(lines.next(), Some("# EOF"))
 }
+
+#[tokio::test]
+async fn command_not_found() {
+    let registry = Arc::new(Mutex::new(Registry::default()));
+    let throttled = Throttled::new(
+        ThrottledExecutor::new("command_not_found", []),
+        ThrottledParser,
+        ThrottledRegisterer { registry: registry.clone() }
+    );
+    let metrics_handler = MetricsHandler::new(throttled, registry.clone());
+    let result = metrics_handler.handle().await;
+
+    assert!(result.is_err());
+}

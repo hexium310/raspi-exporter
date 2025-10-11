@@ -1,7 +1,9 @@
-use std::ffi::OsStr;
+use std::{ffi::OsStr, fmt::Debug};
 
+use anyhow::Context;
 use tokio::process::Command;
 
+#[derive(Debug)]
 pub struct CommandExecutor<S, I> {
     command: S,
     args: I,
@@ -29,11 +31,15 @@ impl<S, I> CommandExecutor<S, I> {
 
 impl<S, I> Executor for CommandExecutor<S, I>
 where
-    S: AsRef<OsStr> + Clone + Copy + Send + Sync,
-    I: IntoIterator<Item = S> + Clone + Copy + Send + Sync,
+    S: AsRef<OsStr> + Debug + Clone + Copy + Send + Sync,
+    I: IntoIterator<Item = S> + Debug + Clone + Copy + Send + Sync,
 {
     async fn execute(&self) -> anyhow::Result<String> {
-        let output = Command::new(self.command).args(self.args).output().await?;
+        let output = Command::new(self.command)
+            .args(self.args)
+            .output()
+            .await
+            .context(format!("{self:?}"))?;
         if !output.status.success() {
             anyhow::bail!("")
         }
