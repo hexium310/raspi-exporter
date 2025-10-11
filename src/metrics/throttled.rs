@@ -6,7 +6,7 @@ use prometheus_client::{
     registry::Registry,
 };
 
-use crate::{command::{CommandExecutor, Executor, Parser, State}, metrics::{Collector, Registerer}};
+use crate::{command::{CommandExecutor, Executor, Parser}, metrics::{Collector, Registerer}};
 
 pub type ThrottledExecutor<S, I> = CommandExecutor<S, I>;
 
@@ -121,8 +121,6 @@ impl Parser for ThrottledParser {
         Ok(state)
     }
 }
-
-impl State for ThrottledState {}
 
 #[cfg(test)]
 mod tests {

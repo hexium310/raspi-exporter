@@ -18,8 +18,6 @@ pub trait Parser {
     fn parse(&self, input: &str) -> anyhow::Result<Self::Item>;
 }
 
-pub trait State {}
-
 impl<S, I> CommandExecutor<S, I> {
     pub fn new(command: S, args: I) -> Self {
         Self {
