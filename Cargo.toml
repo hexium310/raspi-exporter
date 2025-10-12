@@ -18,6 +18,13 @@ version = "0.24.0"
 version = "1.47.1"
 features = ["macros", "net", "process", "rt-multi-thread", "signal"]
 
+[dependencies.tracing]
+version = "0.1.41"
+
+[dependencies.tracing-subscriber]
+version = "0.3.20"
+features = ["env-filter"]
+
 [dev-dependencies.futures]
 version = "0.3.31"
 default-features = false

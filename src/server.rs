@@ -11,7 +11,7 @@ pub struct Server<MetricsHandler> {
 }
 
 impl<MetricsHandler> Server<MetricsHandler>
-where 
+where
     MetricsHandler: Handler + Send + Sync + 'static,
 {
     pub fn new(port: u16, metrics_handler: MetricsHandler) -> Self {
@@ -28,6 +28,8 @@ where
 
         let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, self.port)).await?;
 
+        tracing::info!("listening on {}", listener.local_addr()?);
+
         axum::serve(listener, app)
             .with_graceful_shutdown(shutdown_signal())
             .await?;
@@ -36,8 +38,9 @@ where
     }
 }
 
+#[tracing::instrument(skip_all)]
 async fn handle<S>(State(service): State<Arc<S>>) -> impl IntoResponse
-where 
+where
     S: Handler,
 {
     match service.handle().await {
@@ -47,7 +50,7 @@ where
             res,
         ).into_response(),
         Err(err) => {
-            println!("{err:?}");
+            tracing::error!("{err:?}");
             (StatusCode::INTERNAL_SERVER_ERROR, "").into_response()
         },
     }

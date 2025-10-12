@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
 
+use anyhow::Context;
 use prometheus_client::{encoding::text, registry::Registry};
 
 pub mod throttled;
 
+#[derive(Debug)]
 pub struct MetricsHandler<Throttled> {
     throttled: Throttled,
     registry: Arc<Mutex<Registry>>,
@@ -37,11 +39,13 @@ impl<Throttled> Handler for MetricsHandler<Throttled>
 where
     Throttled: Collector + Send + Sync + 'static,
 {
+    #[tracing::instrument(skip_all)]
     async fn handle(&self) -> anyhow::Result<String> {
-        self.throttled.collect().await?;
+        self.throttled.collect().await.context("throttled collector error")?;
 
         let mut buffer = String::new();
         {
+            tracing::debug!("encoding metrics");
             text::encode(&mut buffer, &self.registry.lock().expect("failed to lock registry mutex"))?;
         }
 

@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use anyhow::Context;
 use prometheus_client::{
     encoding::EncodeLabelSet,
     metrics::{family::Family, gauge::Gauge},
@@ -35,8 +36,10 @@ pub struct ThrottledLabels {
     bit: u8
 }
 
+#[derive(Debug)]
 pub struct ThrottledParser;
 
+#[derive(Debug)]
 pub struct ThrottledRegisterer {
     pub registry: Arc<Mutex<Registry>>,
 }
@@ -57,11 +60,16 @@ where
     P: Parser<Item = ThrottledState> + Send + Sync,
     R: Registerer<Item = ThrottledState> + Send + Sync,
 {
+    #[tracing::instrument(skip_all, fields(collector = %std::any::type_name::<Self>()))]
     async fn collect(&self) -> anyhow::Result<()> {
+        tracing::debug!("collecting throttled");
+
         let output = self.executor.execute().await?;
         let state = self.parser.parse(&output)?;
 
         self.registerer.register(state).await?;
+
+        tracing::debug!("succeeded collecting throttled");
 
         Ok(())
     }
@@ -101,11 +109,13 @@ impl Parser for ThrottledParser {
     type Item = ThrottledState;
 
     fn parse(&self, input: &str) -> anyhow::Result<Self::Item> {
-        let hex = match input.trim().split_once('=') {
-            Some((_key, value)) => value,
-            None => anyhow::bail!("failed to parse: {input}"),
-        };
-        let decimal = u32::from_str_radix(&hex[2..], 16)?;
+        let invalid_input_error = || format!("invalid input: {input}");
+
+        let decimal = input
+            .trim()
+            .split_once('=')
+            .with_context(invalid_input_error)
+            .and_then(|(_, v)| u32::from_str_radix(&v[2..], 16).map_err(|_| anyhow::anyhow!(invalid_input_error())))?;
 
         let state = Self::Item {
             undervoltage_detected: decimal & 0b1 << 0 != 0,
