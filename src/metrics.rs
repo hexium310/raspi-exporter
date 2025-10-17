@@ -42,18 +42,23 @@ where
 {
     #[tracing::instrument(skip_all)]
     async fn handle(&self) -> anyhow::Result<String> {
-        if let Some(collector) = &self.throttled {
-            collector.collect().await.with_context(|| format!("{} collector error", collector.name()))?;
+        if let Some(collector) = &self.throttled
+            && let Err(err) = collector.collect().await.with_context(|| collector_error(collector.name()))
+        {
+            tracing::error!("{err:?}");
         }
 
+
         let mut buffer = String::new();
-        {
-            tracing::debug!("encoding metrics");
-            text::encode(&mut buffer, &self.registry.lock().expect("failed to lock registry mutex"))?;
-        }
+        tracing::debug!("encoding metrics");
+        text::encode(&mut buffer, &self.registry.lock().expect("failed to lock registry mutex"))?;
 
         Ok(buffer)
     }
+}
+
+fn collector_error(name: &str) -> String {
+    format!("{name} collector error")
 }
 
 #[cfg(test)]

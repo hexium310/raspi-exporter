@@ -52,7 +52,9 @@ async fn command_not_found() {
         ThrottledRegisterer { registry: registry.clone() }
     );
     let metrics_handler = MetricsHandler::new(Some(throttled), registry.clone());
-    let result = metrics_handler.handle().await;
+    let result = metrics_handler.handle().await.unwrap();
+    let mut lines = result.lines();
 
-    assert!(result.is_err());
+    assert_eq!(lines.clone().count(), 1);
+    assert_eq!(lines.next(), Some("# EOF"));
 }
