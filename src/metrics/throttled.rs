@@ -60,6 +60,10 @@ where
     P: Parser<Item = ThrottledState> + Send + Sync,
     R: Registerer<Item = ThrottledState> + Send + Sync,
 {
+    fn name(&self) ->  &'static str {
+        "throttled"
+    }
+
     #[tracing::instrument(skip_all, fields(collector = %std::any::type_name::<Self>()))]
     async fn collect(&self) -> anyhow::Result<()> {
         tracing::debug!("collecting throttled");

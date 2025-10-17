@@ -15,7 +15,7 @@ async fn metrics() {
         ThrottledParser,
         ThrottledRegisterer { registry: registry.clone() }
     );
-    let metrics_handler = MetricsHandler::new(throttled, registry.clone());
+    let metrics_handler = MetricsHandler::new(Some(throttled), registry.clone());
     let result = metrics_handler.handle().await.unwrap();
     let mut lines = result.lines();
 
@@ -51,7 +51,7 @@ async fn command_not_found() {
         ThrottledParser,
         ThrottledRegisterer { registry: registry.clone() }
     );
-    let metrics_handler = MetricsHandler::new(throttled, registry.clone());
+    let metrics_handler = MetricsHandler::new(Some(throttled), registry.clone());
     let result = metrics_handler.handle().await;
 
     assert!(result.is_err());

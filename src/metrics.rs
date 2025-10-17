@@ -7,7 +7,7 @@ pub mod throttled;
 
 #[derive(Debug)]
 pub struct MetricsHandler<Throttled> {
-    throttled: Throttled,
+    throttled: Option<Throttled>,
     registry: Arc<Mutex<Registry>>,
 }
 
@@ -19,6 +19,7 @@ pub trait Registerer {
 
 #[cfg_attr(test, mockall::automock)]
 pub trait Collector {
+    fn name(&self) -> &'static str;
     fn collect(&self) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
@@ -27,7 +28,7 @@ pub trait Handler {
 }
 
 impl<Throttled> MetricsHandler<Throttled> {
-    pub fn new(throttled: Throttled, registry: Arc<Mutex<Registry>>) -> Self {
+    pub fn new(throttled: Option<Throttled>, registry: Arc<Mutex<Registry>>) -> Self {
         Self {
             throttled,
             registry,
@@ -41,7 +42,9 @@ where
 {
     #[tracing::instrument(skip_all)]
     async fn handle(&self) -> anyhow::Result<String> {
-        self.throttled.collect().await.context("throttled collector error")?;
+        if let Some(collector) = &self.throttled {
+            collector.collect().await.with_context(|| format!("{} collector error", collector.name()))?;
+        }
 
         let mut buffer = String::new();
         {
@@ -74,7 +77,7 @@ mod tests {
             .times(1)
             .returning(|| Box::pin(ok(())));
 
-        let metrics_handler = MetricsHandler::new(mock_throttled, Arc::new(Mutex::new(Registry::default())));
+        let metrics_handler = MetricsHandler::new(Some(mock_throttled), Arc::new(Mutex::new(Registry::default())));
         let result = metrics_handler.handle().await.unwrap();
 
         assert_eq!(result, "# EOF\n")
