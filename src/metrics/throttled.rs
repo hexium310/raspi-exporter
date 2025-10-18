@@ -25,10 +25,10 @@ pub struct ThrottledState {
     pub arm_frequency_capped: bool,
     pub currently_throttled: bool,
     pub soft_temperature_limit_active: bool,
-    pub undervoltage_has_occured: bool,
-    pub arm_frequency_capping_has_occured: bool,
-    pub throttling_has_occured: bool,
-    pub soft_temperature_limit_has_occured: bool,
+    pub undervoltage_has_occurred: bool,
+    pub arm_frequency_capping_has_occurred: bool,
+    pub throttling_has_occurred: bool,
+    pub soft_temperature_limit_has_occurred: bool,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
@@ -100,10 +100,10 @@ impl Registerer for ThrottledRegisterer {
         family.get_or_create(&ThrottledLabels { bit: 1 }).set(state.arm_frequency_capped.into());
         family.get_or_create(&ThrottledLabels { bit: 2 }).set(state.currently_throttled.into());
         family.get_or_create(&ThrottledLabels { bit: 3 }).set(state.soft_temperature_limit_active.into());
-        family.get_or_create(&ThrottledLabels { bit: 16 }).set(state.undervoltage_has_occured.into());
-        family.get_or_create(&ThrottledLabels { bit: 17 }).set(state.arm_frequency_capping_has_occured.into());
-        family.get_or_create(&ThrottledLabels { bit: 18 }).set(state.throttling_has_occured.into());
-        family.get_or_create(&ThrottledLabels { bit: 19 }).set(state.soft_temperature_limit_has_occured.into());
+        family.get_or_create(&ThrottledLabels { bit: 16 }).set(state.undervoltage_has_occurred.into());
+        family.get_or_create(&ThrottledLabels { bit: 17 }).set(state.arm_frequency_capping_has_occurred.into());
+        family.get_or_create(&ThrottledLabels { bit: 18 }).set(state.throttling_has_occurred.into());
+        family.get_or_create(&ThrottledLabels { bit: 19 }).set(state.soft_temperature_limit_has_occurred.into());
 
         Ok(())
     }
@@ -126,10 +126,10 @@ impl Parser for ThrottledParser {
             arm_frequency_capped: decimal & 0b1 << 1 != 0,
             currently_throttled: decimal & 0b1 << 2 != 0,
             soft_temperature_limit_active: decimal & 0b1 << 3 != 0,
-            undervoltage_has_occured: decimal & 0b1 << 16 != 0,
-            arm_frequency_capping_has_occured: decimal & 0b1 << 17 != 0,
-            throttling_has_occured: decimal & 0b1 << 18 != 0,
-            soft_temperature_limit_has_occured: decimal & 0b1 << 19 != 0,
+            undervoltage_has_occurred: decimal & 0b1 << 16 != 0,
+            arm_frequency_capping_has_occurred: decimal & 0b1 << 17 != 0,
+            throttling_has_occurred: decimal & 0b1 << 18 != 0,
+            soft_temperature_limit_has_occurred: decimal & 0b1 << 19 != 0,
         };
 
         Ok(state)
@@ -174,10 +174,10 @@ mod tests {
                 arm_frequency_capped: false,
                 currently_throttled: true,
                 soft_temperature_limit_active: false,
-                undervoltage_has_occured: true,
-                arm_frequency_capping_has_occured: false,
-                throttling_has_occured: true,
-                soft_temperature_limit_has_occured: true,
+                undervoltage_has_occurred: true,
+                arm_frequency_capping_has_occurred: false,
+                throttling_has_occurred: true,
+                soft_temperature_limit_has_occurred: true,
             }
         )
     }
@@ -200,10 +200,10 @@ mod tests {
                 arm_frequency_capped: false,
                 currently_throttled: true,
                 soft_temperature_limit_active: false,
-                undervoltage_has_occured: true,
-                arm_frequency_capping_has_occured: false,
-                throttling_has_occured: true,
-                soft_temperature_limit_has_occured: true,
+                undervoltage_has_occurred: true,
+                arm_frequency_capping_has_occurred: false,
+                throttling_has_occurred: true,
+                soft_temperature_limit_has_occurred: true,
             }));
 
         let mut mock_registerer = MockRegisterer::new();
@@ -215,10 +215,10 @@ mod tests {
                 arm_frequency_capped: false,
                 currently_throttled: true,
                 soft_temperature_limit_active: false,
-                undervoltage_has_occured: true,
-                arm_frequency_capping_has_occured: false,
-                throttling_has_occured: true,
-                soft_temperature_limit_has_occured: true,
+                undervoltage_has_occurred: true,
+                arm_frequency_capping_has_occurred: false,
+                throttling_has_occurred: true,
+                soft_temperature_limit_has_occurred: true,
             })
             .returning(|_| Box::pin(ok(())));
 
