@@ -29,10 +29,9 @@ jobs:
         run: |
           cargo test
       - name: Run clippy
-        uses: sksat/action-clippy@v1.1.1
+        uses: auguwu/clippy-action@1.4.0
         with:
-          reporter: github-check
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   build:
     name: Build
