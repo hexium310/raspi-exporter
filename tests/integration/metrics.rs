@@ -1,10 +1,12 @@
 use std::sync::{Arc, Mutex};
 
 use prometheus_client::registry::Registry;
-use raspi_exporter::metrics::{
-    throttled::{Throttled, ThrottledExecutor, ThrottledParser, ThrottledRegisterer},
-    Handler,
-    MetricsHandler,
+use raspi_exporter::{
+    collector::throttled::Throttled,
+    executor::throttled::ThrottledExecutor,
+    metrics::{ Handler, MetricsHandler },
+    parser::throttled::ThrottledParser,
+    registerer::throttled::ThrottledRegisterer,
 };
 
 #[tokio::test]

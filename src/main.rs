@@ -4,12 +4,13 @@ use clap::Parser;
 use prometheus_client::registry::Registry;
 
 use raspi_exporter::{
-    cli::{Cli, Log},
-    metrics::{
-        throttled::{Throttled, ThrottledExecutor, ThrottledParser, ThrottledRegisterer},
-        MetricsHandler
-    },
-    server::Server
+    cli::{ Cli, Log },
+    collector::throttled::Throttled,
+    executor::throttled::ThrottledExecutor,
+    metrics::MetricsHandler,
+    parser::throttled::ThrottledParser,
+    registerer::throttled::ThrottledRegisterer,
+    server::Server,
 };
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
