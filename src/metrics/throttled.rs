@@ -2,10 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use prometheus_client::{
-    encoding::EncodeLabelSet,
+    encoding::{EncodeLabelSet, EncodeLabelValue, LabelValueEncoder},
     metrics::{family::Family, gauge::Gauge},
     registry::Registry,
 };
+use strum::Display as StrumDisplay;
 
 use crate::{command::{CommandExecutor, Executor, Parser}, metrics::{Collector, Registerer}};
 
@@ -33,12 +34,12 @@ pub struct ThrottledState {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
 pub struct ThrottlingActiveLabels {
-    bit: u8
+    kind: ThrottlingKind,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
 pub struct ThrottlingOccurredLabels {
-    bit: u8
+    kind: ThrottlingKind,
 }
 
 #[derive(Debug)]
@@ -47,6 +48,18 @@ pub struct ThrottledParser;
 #[derive(Debug)]
 pub struct ThrottledRegisterer {
     pub registry: Arc<Mutex<Registry>>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, StrumDisplay)]
+pub enum ThrottlingKind {
+    #[strum(to_string = "undervoltage")]
+    Undervoltage,
+    #[strum(to_string = "arm frequency")]
+    ArmFrequency,
+    #[strum(to_string = "throttled")]
+    Throttled,
+    #[strum(to_string = "soft temperature limit")]
+    SoftTemperatureLimit,
 }
 
 impl<E, P, R> Throttled<E, P, R> {
@@ -106,34 +119,34 @@ impl Registerer for ThrottledRegisterer {
             );
         }
 
-        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 0 }).set(state.undervoltage_detected.into());
-        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 1 }).set(state.arm_frequency_capped.into());
-        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 2 }).set(state.currently_throttled.into());
-        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 3 }).set(state.soft_temperature_limit_active.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { kind: ThrottlingKind::Undervoltage }).set(state.undervoltage_detected.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { kind: ThrottlingKind::ArmFrequency }).set(state.arm_frequency_capped.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { kind: ThrottlingKind::Throttled }).set(state.currently_throttled.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { kind: ThrottlingKind::SoftTemperatureLimit }).set(state.soft_temperature_limit_active.into());
 
         {
-            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 16 });
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { kind: ThrottlingKind::Undervoltage });
             if state.undervoltage_has_occurred && metric.get() == 0 {
                 metric.inc();
             }
         }
 
         {
-            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 17 });
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { kind: ThrottlingKind::ArmFrequency });
             if state.arm_frequency_capping_has_occurred && metric.get() == 0 {
                 metric.inc();
             }
         }
 
         {
-            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 18 });
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { kind: ThrottlingKind::Throttled });
             if state.throttling_has_occurred && metric.get() == 0 {
                 metric.inc();
             }
         }
 
         {
-            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 19 });
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { kind: ThrottlingKind::SoftTemperatureLimit });
             if state.soft_temperature_limit_has_occurred && metric.get() == 0 {
                 metric.inc();
             }
@@ -167,6 +180,12 @@ impl Parser for ThrottledParser {
         };
 
         Ok(state)
+    }
+}
+
+impl EncodeLabelValue for ThrottlingKind {
+    fn encode(&self, encoder: &mut LabelValueEncoder) -> Result<(), std::fmt::Error> {
+        self.to_string().encode(encoder)
     }
 }
 

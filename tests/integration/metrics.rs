@@ -30,10 +30,10 @@ async fn metrics() {
     assert_eq!(
         metrics,
         [
-            "raspi_throttling_active{bit=\"0\"} 1",
-            "raspi_throttling_active{bit=\"1\"} 0",
-            "raspi_throttling_active{bit=\"2\"} 1",
-            "raspi_throttling_active{bit=\"3\"} 0",
+            "raspi_throttling_active{kind=\"arm frequency\"} 0",
+            "raspi_throttling_active{kind=\"soft temperature limit\"} 0",
+            "raspi_throttling_active{kind=\"throttled\"} 1",
+            "raspi_throttling_active{kind=\"undervoltage\"} 1",
         ]
     );
 
@@ -46,10 +46,10 @@ async fn metrics() {
     assert_eq!(
         metrics,
         [
-            "raspi_throttling_occurred{bit=\"16\"} 1",
-            "raspi_throttling_occurred{bit=\"17\"} 0",
-            "raspi_throttling_occurred{bit=\"18\"} 1",
-            "raspi_throttling_occurred{bit=\"19\"} 1",
+            "raspi_throttling_occurred{kind=\"arm frequency\"} 0",
+            "raspi_throttling_occurred{kind=\"soft temperature limit\"} 1",
+            "raspi_throttling_occurred{kind=\"throttled\"} 1",
+            "raspi_throttling_occurred{kind=\"undervoltage\"} 1",
         ]
     );
     assert_eq!(lines.next(), Some("# EOF"))
