@@ -19,25 +19,37 @@ async fn metrics() {
     let result = metrics_handler.handle().await.unwrap();
     let mut lines = result.lines();
 
-    assert_eq!(lines.clone().count(), 11);
-    assert_eq!(lines.next(), Some("# HELP raspi_throttled Throttled state."));
-    assert_eq!(lines.next(), Some("# TYPE raspi_throttled gauge"));
+    assert_eq!(lines.clone().count(), 13);
+    assert_eq!(lines.next(), Some("# HELP raspi_throttling_active State about throttling active currently."));
+    assert_eq!(lines.next(), Some("# TYPE raspi_throttling_active gauge"));
 
-    let mut metrics = lines.by_ref().take(8).collect::<Vec<_>>();
+    let mut metrics = lines.by_ref().take(4).collect::<Vec<_>>();
     metrics.sort();
 
-    assert_eq!(metrics.clone().len(), 8);
+    assert_eq!(metrics.clone().len(), 4);
     assert_eq!(
         metrics,
         [
-            "raspi_throttled{bit=\"0\"} 1",
-            "raspi_throttled{bit=\"1\"} 0",
-            "raspi_throttled{bit=\"16\"} 1",
-            "raspi_throttled{bit=\"17\"} 0",
-            "raspi_throttled{bit=\"18\"} 1",
-            "raspi_throttled{bit=\"19\"} 1",
-            "raspi_throttled{bit=\"2\"} 1",
-            "raspi_throttled{bit=\"3\"} 0",
+            "raspi_throttling_active{bit=\"0\"} 1",
+            "raspi_throttling_active{bit=\"1\"} 0",
+            "raspi_throttling_active{bit=\"2\"} 1",
+            "raspi_throttling_active{bit=\"3\"} 0",
+        ]
+    );
+
+    assert_eq!(lines.next(), Some("# HELP raspi_throttling_occurred State about throttling occurred in the past."));
+    assert_eq!(lines.next(), Some("# TYPE raspi_throttling_occurred gauge"));
+
+    let mut metrics = lines.by_ref().take(4).collect::<Vec<_>>();
+    metrics.sort();
+    assert_eq!(metrics.clone().len(), 4);
+    assert_eq!(
+        metrics,
+        [
+            "raspi_throttling_occurred{bit=\"16\"} 1",
+            "raspi_throttling_occurred{bit=\"17\"} 0",
+            "raspi_throttling_occurred{bit=\"18\"} 1",
+            "raspi_throttling_occurred{bit=\"19\"} 1",
         ]
     );
     assert_eq!(lines.next(), Some("# EOF"))

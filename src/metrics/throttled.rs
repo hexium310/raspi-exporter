@@ -32,7 +32,12 @@ pub struct ThrottledState {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
-pub struct ThrottledLabels {
+pub struct ThrottlingActiveLabels {
+    bit: u8
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+pub struct ThrottlingOccurredLabels {
     bit: u8
 }
 
@@ -83,27 +88,56 @@ impl Registerer for ThrottledRegisterer {
     type Item = ThrottledState;
 
     async fn register(&self, state: Self::Item) -> anyhow::Result<()> {
-        let family = Family::<ThrottledLabels, Gauge>::default();
+        // Substitutes Gauge for StateSet of OpenMetrics because prometheus_client doens't implement it
+        let throttling_active_family = Family::<ThrottlingActiveLabels, Gauge>::default();
+        // Substitutes Gauge for StateSet of OpenMetrics because prometheus_client doens't implement it
+        let throttling_occurred_family = Family::<ThrottlingOccurredLabels, Gauge>::default();
         {
-            self
-                .registry
-                .lock()
-                .expect("failed to lock registry mutex")
-                .register(
-                    "raspi_throttled",
-                    "Throttled state",
-                    family.clone(),
-                );
+            let mut registry = self.registry.lock().expect("failed to lock registry mutex");
+            registry.register(
+                "raspi_throttling_active",
+                "State about throttling active currently",
+                throttling_active_family.clone(),
+            );
+            registry.register(
+                "raspi_throttling_occurred",
+                "State about throttling occurred in the past",
+                throttling_occurred_family.clone(),
+            );
         }
 
-        family.get_or_create(&ThrottledLabels { bit: 0 }).set(state.undervoltage_detected.into());
-        family.get_or_create(&ThrottledLabels { bit: 1 }).set(state.arm_frequency_capped.into());
-        family.get_or_create(&ThrottledLabels { bit: 2 }).set(state.currently_throttled.into());
-        family.get_or_create(&ThrottledLabels { bit: 3 }).set(state.soft_temperature_limit_active.into());
-        family.get_or_create(&ThrottledLabels { bit: 16 }).set(state.undervoltage_has_occurred.into());
-        family.get_or_create(&ThrottledLabels { bit: 17 }).set(state.arm_frequency_capping_has_occurred.into());
-        family.get_or_create(&ThrottledLabels { bit: 18 }).set(state.throttling_has_occurred.into());
-        family.get_or_create(&ThrottledLabels { bit: 19 }).set(state.soft_temperature_limit_has_occurred.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 0 }).set(state.undervoltage_detected.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 1 }).set(state.arm_frequency_capped.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 2 }).set(state.currently_throttled.into());
+        throttling_active_family.get_or_create(&ThrottlingActiveLabels { bit: 3 }).set(state.soft_temperature_limit_active.into());
+
+        {
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 16 });
+            if state.undervoltage_has_occurred && metric.get() == 0 {
+                metric.inc();
+            }
+        }
+
+        {
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 17 });
+            if state.arm_frequency_capping_has_occurred && metric.get() == 0 {
+                metric.inc();
+            }
+        }
+
+        {
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 18 });
+            if state.throttling_has_occurred && metric.get() == 0 {
+                metric.inc();
+            }
+        }
+
+        {
+            let metric = throttling_occurred_family.get_or_create(&ThrottlingOccurredLabels { bit: 19 });
+            if state.soft_temperature_limit_has_occurred && metric.get() == 0 {
+                metric.inc();
+            }
+        }
 
         Ok(())
     }
