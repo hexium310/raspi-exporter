@@ -1,0 +1,32 @@
+name: Bump
+on:
+  workflow_dispatch:
+    inputs:
+      strategy:
+        description: The strategy to bump the version number.
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Bump
+        uses: hexium310/workflows/.github/actions/bump@master
+        with:
+          strategy: ${{ github.event.inputs.strategy }}
+          package-ecosystems: '["cargo"]'
+          token: ${{ secrets.GITHUB_TOKEN }}
