@@ -12,9 +12,6 @@ on:
           - minor
           - major
 
-permissions:
-  contents: write
-
 jobs:
   bump:
     name: Bump
@@ -29,4 +26,5 @@ jobs:
         with:
           strategy: ${{ github.event.inputs.strategy }}
           package-ecosystems: '["cargo"]'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # BUMP_TOKEN is required for triggering CD workflow
+          token: ${{ secrets.BUMP_TOKEN }}
