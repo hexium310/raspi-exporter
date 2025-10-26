@@ -5,7 +5,13 @@ use prometheus_client::{
     registry::Registry,
 };
 
-use crate::{metrics::{throttled::{ThrottlingActiveLabels, ThrottlingKind, ThrottlingOccurredLabels}, Registerer}, parser::throttled::ThrottledState};
+use crate::{
+    metrics::{
+        throttled::{ThrottlingActiveLabels, ThrottlingKind, ThrottlingOccurredLabels},
+        Registerer,
+    },
+    parser::throttled::ThrottledState,
+};
 
 #[derive(Debug)]
 pub struct ThrottledRegisterer {

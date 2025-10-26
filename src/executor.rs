@@ -1,6 +1,8 @@
 pub mod throttled;
+pub mod volts;
 
-#[cfg_attr(test, mockall::automock)]
 pub trait Executor {
-    fn execute(&self) -> impl Future<Output = anyhow::Result<String>> + Send;
+    type Output;
+
+    fn execute(&self) -> impl Future<Output = anyhow::Result<Self::Output>> + Send;
 }
