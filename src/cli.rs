@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use clap::{Args, Parser, ValueEnum};
 use strum::Display as StrumDisplay;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::filter::Directive;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -10,7 +12,10 @@ pub struct Cli {
     pub port: u16,
 
     #[arg(long, value_enum, default_value_t = Log::Plain)]
-    pub log: Log,
+    pub log_output: Log,
+
+    #[arg(long, value_enum, default_value_t = LogLevel::Info)]
+    pub log_level: LogLevel,
 
     #[command(flatten)]
     pub metrics: Metrics,
@@ -36,6 +41,15 @@ pub enum Log {
     Json,
 }
 
+#[derive(Debug, Clone, ValueEnum)]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
 #[derive(Debug, Clone, ValueEnum, StrumDisplay, PartialEq, Eq)]
 #[strum(serialize_all = "snake_case")]
 pub enum Metric {
@@ -56,5 +70,17 @@ impl Metrics {
 impl Display for Metrics {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.enable_metrics.iter().map(ToString::to_string).collect::<Vec<_>>().join(","))
+    }
+}
+
+impl From<LogLevel> for Directive {
+    fn from(value: LogLevel) -> Self {
+        match value {
+            LogLevel::Trace => LevelFilter::TRACE.into(),
+            LogLevel::Debug => LevelFilter::DEBUG.into(),
+            LogLevel::Info => LevelFilter::INFO.into(),
+            LogLevel::Warn => LevelFilter::WARN.into(),
+            LogLevel::Error => LevelFilter::ERROR.into(),
+        }
     }
 }

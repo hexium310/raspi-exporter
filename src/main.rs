@@ -4,7 +4,7 @@ use clap::Parser;
 use prometheus_client::registry::Registry;
 
 use raspi_exporter::{
-    cli::{ Cli, Log },
+    cli::{ Cli, Log, LogLevel },
     collector::{throttled::Throttled, volts::Volts},
     executor::{throttled::ThrottledExecutor, volts::VoltsExecutor},
     metrics::MetricsHandler,
@@ -12,7 +12,6 @@ use raspi_exporter::{
     registerer::{throttled::ThrottledRegisterer, volts::VoltsRegisterer},
     server::Server,
 };
-use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt,
     layer::SubscriberExt,
@@ -25,7 +24,7 @@ use tracing_subscriber::{
 async fn main() {
     let args = Cli::parse();
 
-    setup_logging(args.log);
+    setup_logging(args.log_level, args.log_output);
 
     tracing::info!("starting raspi_exporter");
     tracing::info!("enabled metrics: {}", args.metrics);
@@ -60,7 +59,7 @@ async fn main() {
     };
 }
 
-fn setup_logging(output_type: Log) {
+fn setup_logging(level: LogLevel, output_type: Log) {
     let layer = fmt::layer();
     let layer = match output_type {
         Log::Plain => layer.boxed(),
@@ -71,7 +70,7 @@ fn setup_logging(output_type: Log) {
         .with(layer)
         .with(
             EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
+                .with_default_directive(level.into())
                 .from_env_lossy()
         )
         .init();
