@@ -19,9 +19,9 @@ pub struct ThrottledState {
 }
 
 impl Parser for ThrottledParser {
-    type Item = ThrottledState;
+    type Item<'a> = ThrottledState;
 
-    fn parse(&self, input: &str) -> anyhow::Result<Self::Item> {
+    fn parse<'a>(&'a self, input: &'a str) -> anyhow::Result<Self::Item<'a>> {
         let invalid_input_error = || format!("invalid input: {input}");
 
         let decimal = input

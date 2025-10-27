@@ -24,6 +24,7 @@ pub struct Metrics {
         value_delimiter = ',',
         default_values_t = [
             Metric::Throttled,
+            Metric::Volts,
         ],
     )]
     pub enable_metrics: Vec<Metric>,
@@ -39,11 +40,16 @@ pub enum Log {
 #[strum(serialize_all = "snake_case")]
 pub enum Metric {
     Throttled,
+    Volts,
 }
 
 impl Metrics {
     pub fn has_throttled(&self) -> bool {
         self.enable_metrics.contains(&Metric::Throttled)
+    }
+
+    pub fn has_volts(&self) -> bool {
+        self.enable_metrics.contains(&Metric::Volts)
     }
 }
 

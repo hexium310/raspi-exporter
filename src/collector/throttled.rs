@@ -23,8 +23,8 @@ impl<E, P, R> Throttled<E, P, R> {
 
 impl<E, P, R> Collector for Throttled<E, P, R>
 where
-    E: Executor + Send + Sync,
-    P: Parser<Item = ThrottledState> + Send + Sync,
+    E: Executor<Output = String> + Send + Sync,
+    P: for<'a> Parser<Item<'a> = ThrottledState> + Send + Sync + 'static,
     R: Registerer<Item = ThrottledState> + Send + Sync,
 {
     fn name(&self) ->  &'static str {
@@ -52,10 +52,20 @@ mod tests {
 
     use crate::{
         collector::throttled::Throttled,
-        executor::MockExecutor,
+        executor::Executor,
         metrics::{Collector, Registerer},
         parser::{throttled::ThrottledState, Parser},
     };
+
+    mockall::mock! {
+        Executor {}
+
+        impl Executor for Executor {
+            type Output = String;
+
+            fn execute(&self) -> impl Future<Output = anyhow::Result<<Self as Executor>::Output>> + Send;
+        }
+    }
 
     mockall::mock! {
         Registerer {}
@@ -71,9 +81,9 @@ mod tests {
         Parser {}
 
         impl Parser for Parser {
-            type Item = ThrottledState;
+            type Item<'a> = ThrottledState;
 
-            fn parse(&self, input: &str) -> anyhow::Result<<Self as Parser>::Item>;
+            fn parse<'a>(&self, input: &'a str) -> anyhow::Result<<Self as Parser>::Item<'static>>;
         }
     }
 

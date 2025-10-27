@@ -5,11 +5,11 @@ use prometheus_client::registry::Registry;
 
 use raspi_exporter::{
     cli::{ Cli, Log },
-    collector::throttled::Throttled,
-    executor::throttled::ThrottledExecutor,
+    collector::{throttled::Throttled, volts::Volts},
+    executor::{throttled::ThrottledExecutor, volts::VoltsExecutor},
     metrics::MetricsHandler,
-    parser::throttled::ThrottledParser,
-    registerer::throttled::ThrottledRegisterer,
+    parser::{throttled::ThrottledParser, volts::VoltsParser},
+    registerer::{throttled::ThrottledRegisterer, volts::VoltsRegisterer},
     server::Server,
 };
 use tracing::level_filters::LevelFilter;
@@ -39,7 +39,20 @@ async fn main() {
             ThrottledParser,
             ThrottledRegisterer { registry: registry.clone() }
         ));
-    let metrics_handler = MetricsHandler::new(throttled, registry.clone());
+    let volts = args
+        .metrics
+        .has_volts()
+        .then(|| Volts::new(
+            VoltsExecutor::new(&[
+                ("vcgencmd", ["measure_volts", "core"]),
+                ("vcgencmd", ["measure_volts", "sdram_c"]),
+                ("vcgencmd", ["measure_volts", "sdram_i"]),
+                ("vcgencmd", ["measure_volts", "sdram_p"]),
+            ]),
+            VoltsParser,
+            VoltsRegisterer { registry: registry.clone() }
+        ));
+    let metrics_handler = MetricsHandler::new(throttled, volts, registry.clone());
 
     let server = Server::new(args.port, metrics_handler);
     if let Err(err) = server.start().await {

@@ -4,10 +4,12 @@ use anyhow::Context;
 use prometheus_client::{encoding::text, registry::Registry};
 
 pub mod throttled;
+pub mod volts;
 
 #[derive(Debug)]
-pub struct MetricsHandler<Throttled> {
-    throttled: Option<Throttled>,
+pub struct MetricsHandler<ThrottledCollector, VoltsCollector> {
+    throttled: Option<ThrottledCollector>,
+    volts: Option<VoltsCollector>,
     registry: Arc<Mutex<Registry>>,
 }
 
@@ -27,27 +29,29 @@ pub trait Handler {
     fn handle(&self) -> impl Future<Output = anyhow::Result<String>> + Send;
 }
 
-impl<Throttled> MetricsHandler<Throttled> {
-    pub fn new(throttled: Option<Throttled>, registry: Arc<Mutex<Registry>>) -> Self {
+impl<ThrottledCollector, VoltsCollector> MetricsHandler<ThrottledCollector, VoltsCollector> {
+    pub fn new(
+        throttled: Option<ThrottledCollector>,
+        volts: Option<VoltsCollector>,
+        registry: Arc<Mutex<Registry>>,
+    ) -> Self {
         Self {
             throttled,
+            volts,
             registry,
         }
     }
 }
 
-impl<Throttled> Handler for MetricsHandler<Throttled>
+impl<ThrottledCollector, VoltsCollector> Handler for MetricsHandler<ThrottledCollector, VoltsCollector>
 where
-    Throttled: Collector + Send + Sync + 'static,
+    ThrottledCollector: Collector + Send + Sync,
+    VoltsCollector: Collector + Send + Sync,
 {
     #[tracing::instrument(skip_all)]
     async fn handle(&self) -> anyhow::Result<String> {
-        if let Some(collector) = &self.throttled
-            && let Err(err) = collector.collect().await.with_context(|| collector_error(collector.name()))
-        {
-            tracing::error!("{err:?}");
-        }
-
+        collect(&self.throttled).await;
+        collect(&self.volts).await;
 
         let mut buffer = String::new();
         tracing::debug!("encoding metrics");
@@ -57,8 +61,12 @@ where
     }
 }
 
-fn collector_error(name: &str) -> String {
-    format!("{name} collector error")
+async fn collect<C: Collector + Send + Sync>(collector: &Option<C>) {
+    if let Some(collector) = collector
+        && let Err(err) = collector.collect().await.with_context(|| format!("{} collector error", collector.name()))
+    {
+        tracing::error!("{err:?}");
+    }
 }
 
 #[cfg(test)]
@@ -82,7 +90,17 @@ mod tests {
             .times(1)
             .returning(|| Box::pin(ok(())));
 
-        let metrics_handler = MetricsHandler::new(Some(mock_throttled), Arc::new(Mutex::new(Registry::default())));
+        let mut mock_volts = MockCollector::new();
+        mock_volts
+            .expect_collect()
+            .times(1)
+            .returning(|| Box::pin(ok(())));
+
+        let metrics_handler = MetricsHandler::new(
+            Some(mock_throttled),
+            Some(mock_volts),
+            Arc::new(Mutex::new(Registry::default())),
+        );
         let result = metrics_handler.handle().await.unwrap();
 
         assert_eq!(result, "# EOF\n")

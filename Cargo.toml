@@ -15,8 +15,21 @@ features = ["tokio", "http1"]
 version = "4.5.49"
 features = ["derive"]
 
+[dependencies.futures]
+version = "0.3.31"
+default-features = false
+features = ["std"]
+
+[dependencies.lazy-regex]
+version = "3.4.1"
+default-features = false
+features = ["lite"]
+
 [dependencies.prometheus-client]
 version = "0.24.0"
+
+[dependencies.regex-lite]
+version = "0.1.8"
 
 [dependencies.strum]
 version = "0.27.2"
