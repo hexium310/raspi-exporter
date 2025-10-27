@@ -10,8 +10,6 @@ permissions:
 jobs:
   build:
     name: Build
-    env:
-      ARCHIVE: raspi-exporter-${{ $github.ref_name }}-aarch64-unknown-linux-gnu
     runs-on: ubuntu-22.04-arm
     steps:
       - name: Checkout repository
@@ -27,12 +25,16 @@ jobs:
       - name: Build
         run: |
           cargo build --release
+      - name: Set env
+        run: |
+          echo "ARCHIVE=raspi-exporter-${{ github.ref_name }}-aarch64-unknown-linux-gnu" >> $GITHUB_ENV
       - name: Archive
         run: |
-          mkdir "${{ env.ARCHIVE }}"
-          cp ./target/release/raspi-exporter "${{ env.ARCHIVE }}"
+          mkdir "$ARCHIVE"
+          cp ./target/release/raspi-exporter "$ARCHIVE"
+          tar czf "$ARCHIVE.tar.gz" "$ARCHIVE"
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create ${{ github.ref_name }} --generate-notes "${{ env.ARCHIVE }}"
+          gh release create ${{ github.ref_name }} --generate-notes "$ARCHIVE.tar.gz"
