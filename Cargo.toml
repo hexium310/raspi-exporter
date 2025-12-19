@@ -43,7 +43,7 @@ features = ["macros", "net", "process", "rt-multi-thread", "signal"]
 version = "0.1.41"
 
 [dependencies.tracing-subscriber]
-version = "0.3.20"
+version = "0.3.22"
 features = ["env-filter", "json"]
 
 [dev-dependencies.futures]
