@@ -21,7 +21,7 @@ default-features = false
 features = ["std"]
 
 [dependencies.lazy-regex]
-version = "3.4.1"
+version = "3.6.0"
 default-features = false
 features = ["lite"]
 
